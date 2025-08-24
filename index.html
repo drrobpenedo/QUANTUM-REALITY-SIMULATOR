@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quantum Reality Simulator</title>
+  <meta name="description" content="Playful visualization of superposition, collapse, tunneling, and entanglement using HTML5 Canvas." />
+  <meta name="theme-color" content="#00ffff" />
+  <!-- Simple emoji favicon as inline SVG -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E⚛️%3C/text%3E%3C/svg%3E">
+  <!-- Font (optional) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --c1: #00ffff;
+      --c2: #0099ff;
+      --bg1: #0a0a0a;
+      --bg2: #1a1a2e;
+      --bg3: #16213e;
+    }
+    body {
+      font-family: 'JetBrains Mono','Courier New',monospace;
+      background: linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg3));
+      color: var(--c1);
+      min-height: 100vh;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    h1 {
+      text-align: center;
+      font-size: 2.4rem;
+      margin-bottom: 10px;
+      text-shadow: 0 0 20px var(--c1);
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+    @keyframes glow {
+      from { text-shadow: 0 0 20px var(--c1); }
+      to   { text-shadow: 0 0 30px var(--c1), 0 0 40px var(--c2); }
+    }
+    .subtitle { text-align: center; font-size: 1.1rem; margin-bottom: 30px; color: #88ccff; }
+    .simulation-area { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+    .quantum-box {
+      background: rgba(0,255,255,.08);
+      border: 2px solid var(--c1);
+      border-radius: 15px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 30px rgba(0,255,255,.25);
+    }
+    .quantum-box h3 { margin-bottom: 15px; color: var(--c1); text-align: center; }
+    /* Canvas shows at 300px tall; JS handles crisp drawing on HiDPI */
+    #waveCanvas, #particleCanvas {
+      width: 100%;
+      height: 300px;
+      border: 1px solid var(--c1);
+      border-radius: 10px;
+      background: rgba(0,0,0,.5);
+      display: block;
+    }
+    .controls { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 20px; margin-bottom: 30px; }
+    .control-panel {
+      background: rgba(0,255,255,.08);
+      border: 1px solid var(--c1);
+      border-radius: 10px;
+      padding: 15px;
+    }
+    .control-panel h4 { margin-bottom: 10px; color: var(--c1); }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+    button {
+      background: linear-gradient(45deg,var(--c1),var(--c2));
+      color: #000;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform .2s, box-shadow .2s;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 0 18px rgba(0,255,255,.45); }
+    input[type="range"] { width: 100%; margin: 10px 0; accent-color: var(--c1); }
+    .quantum-state { background: rgba(0,0,0,.65); border: 1px solid var(--c1); border-radius: 10px; padding: 15px; }
+    .state-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: .95rem; }
+    .probability-bar { height: 20px; background: linear-gradient(90deg,#ff0080,var(--c1)); border-radius: 10px; margin: 5px 0; overflow: hidden; }
+    .probability-fill { height: 100%; background: rgba(255,255,255,.82); transition: width .4s ease; }
+    .measurement-result { text-align: center; font-size: 1.1rem; margin: 10px 0; padding: 10px; border-radius: 8px; background: rgba(255,255,255,.08); }
+    @media (max-width:768px) {
+      .simulation-area { grid-template-columns: 1fr; }
+      h1 { font-size: 2rem; }
+      .controls { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚛️ QUANTUM REALITY SIMULATOR ⚛️</h1>
+    <p class="subtitle">Experience the Strange World of Quantum Mechanics</p>
+
+    <section class="simulation-area" aria-label="Quantum canvases">
+      <div class="quantum-box">
+        <h3>Wave Function Visualization</h3>
+        <canvas id="waveCanvas" aria-label="Wave function canvas" role="img"></canvas>
+      </div>
+
+      <div class="quantum-box">
+        <h3>Particle Detection</h3>
+        <canvas id="particleCanvas" aria-label="Particle canvas" role="img"></canvas>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="Controls">
+      <div class="control-panel">
+        <h4>Quantum State Control</h4>
+        <div class="btn-row">
+          <button id="btnSuperposition" type="button">Create Superposition</button>
+          <button id="btnMeasure" type="button">Measure System</button>
+          <button id="btnReset" type="button">Reset System</button>
+        </div>
+        <label for="uncertaintySlider">Uncertainty: <span id="uncertaintyValue">50%</span></label>
+        <input type="range" id="uncertaintySlider" min="0" max="100" value="50" />
+      </div>
+
+      <div class="control-panel">
+        <h4>Wave Properties</h4>
+        <div class="btn-row">
+          <button id="btnToggleWave" type="button">Toggle Wave Type</button>
+          <button id="btnInterference" type="button">Add Interference</button>
+        </div>
+        <label for="frequencySlider">Frequency: <span id="frequencyValue">1.0</span></label>
+        <input type="range" id="frequencySlider" min="0.1" max="3" step="0.1" value="1" />
+      </div>
+
+      <div class="control-panel">
+        <h4>Quantum Effects</h4>
+        <div class="btn-row">
+          <button id="btnTunnel" type="button">Quantum Tunneling</button>
+          <button id="btnEntangle" type="button">Entanglement</button>
+          <button id="btnObserver" type="button">Observer Effect</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="quantum-state">
+      <h4>System State Information</h4>
+      <div class="state-info">
+        <div>
+          <strong>State:</strong> <span id="currentState">Superposition</span><br>
+          <strong>Measured:</strong> <span id="measurementStatus">No</span><br>
+          <strong>Entangled:</strong> <span id="entanglementStatus">No</span>
+        </div>
+        <div>
+          <strong>Observer Present:</strong> <span id="observerStatus">No</span><br>
+          <strong>Wave Collapsed:</strong> <span id="collapseStatus">No</span><br>
+          <strong>Tunneling:</strong> <span id="tunnelingStatus">No</span>
+        </div>
+      </div>
+
+      <div>
+        <strong>Probability Distribution:</strong>
+        <div>Position A:
+          <div class="probability-bar"><div class="probability-fill" id="probA" style="width:50%"></div></div>
+        </div>
+        <div>Position B:
+          <div class="probability-bar"><div class="probability-fill" id="probB" style="width:50%"></div></div>
+        </div>
+      </div>
+
+      <div class="measurement-result" id="measurementResult">
+        System in quantum superposition — all possibilities exist simultaneously.
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const waveCanvas = document.getElementById('waveCanvas');
+      const particleCanvas = document.getElementById('particleCanvas');
+      const waveCtx = waveCanvas.getContext('2d');
+      const particleCtx = particleCanvas.getContext('2d');
+
+      // Track drawing sizes in CSS pixels (we scale for HiDPI)
+      let waveW = 0, waveH = 0, partW = 0, partH = 0;
+
+      function setupCanvas(canvas, ctx) {
+        const dpr = window.devicePixelRatio || 1;
+        const cssWidth = canvas.clientWidth;
+        const cssHeight = 300; // matches CSS height
+        canvas.width  = Math.max(1, Math.floor(cssWidth  * dpr));
+        canvas.height = Math.max(1, Math.floor(cssHeight * dpr));
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+        return { w: cssWidth, h: cssHeight };
+      }
+
+      function resizeAll() {
+        const a = setupCanvas(waveCanvas, waveCtx);
+        waveW = a.w; waveH = a.h;
+        const b = setupCanvas(particleCanvas, particleCtx);
+        partW = b.w; partH = b.h;
+        // Re-center particles if canvas changed a lot
+        quantumState.particles.forEach(p => {
+          p.x = Math.random() * partW;
+          p.y = Math.random() * partH;
+        });
+      }
+      window.addEventListener('resize', resizeAll);
+
+      let quantumState = {
+        inSuperposition: true,
+        measured: false,
+        entangled: false,
+        observerPresent: false,
+        waveCollapsed: false,
+        tunneling: false,
+        uncertainty: 50,
+        frequency: 1.0,
+        waveType: 'sine',
+        interferenceActive: false,
+        measurementResult: null,
+        probabilityA: 50,
+        probabilityB: 50,
+        particles: []
+      };
+
+      // Initialize particles (positions will be updated on first resizeAll)
+      for (let i = 0; i < 20; i++) {
+        quantumState.particles.push({
+          x: 0, y: 0,
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2,
+          phase: Math.random() * Math.PI * 2,
+          opacity: Math.random()
+        });
+      }
+
+      let animationTime = 0;
+      function animate() {
+        animationTime += 0.05;
+        drawWaveFunction();
+        drawParticles();
+        requestAnimationFrame(animate);
+      }
+
+      function drawWaveFunction() {
+        waveCtx.clearRect(0, 0, waveW, waveH);
+
+        if (quantumState.waveCollapsed) {
+          waveCtx.strokeStyle = quantumState.measurementResult === 'A' ? '#ff0080' : '#00ffff';
+          waveCtx.lineWidth = 3;
+          waveCtx.beginPath();
+          const centerY = waveH / 2;
+          const centerX = quantumState.measurementResult === 'A' ? waveW * 0.25 : waveW * 0.75;
+
+          for (let x = 0; x < waveW; x++) {
+            const distance = Math.abs(x - centerX);
+            const amplitude = 0.17 * waveH * Math.exp(-distance / (waveW * 0.075));
+            const y = centerY + amplitude * Math.sin((x - centerX) * 0.1 + animationTime);
+            x === 0 ? waveCtx.moveTo(x, y) : waveCtx.lineTo(x, y);
+          }
+          waveCtx.stroke();
+        } else if (quantumState.inSuperposition) {
+          waveCtx.strokeStyle = `rgba(0,255,255,${quantumState.observerPresent ? 0.3 : 0.8})`;
+          waveCtx.lineWidth = 2;
+          waveCtx.beginPath();
+
+          for (let x = 0; x < waveW; x++) {
+            let y = waveH / 2;
+            const base = 0.1 * quantumState.frequency;
+            y += (quantumState.waveType === 'sine'
+              ? 0.2 * waveH * Math.sin(x * base + animationTime)
+              : 0.2 * waveH * Math.cos(x * base + animationTime));
+            if (quantumState.interferenceActive) {
+              y += 0.1 * waveH * Math.sin(x * base * 2 + animationTime * 1.5);
+            }
+            x === 0 ? waveCtx.moveTo(x, y) : waveCtx.lineTo(x, y);
+          }
+          waveCtx.stroke();
+
+          // probability "clouds"
+          waveCtx.fillStyle = 'rgba(255,0,128,0.3)';
+          waveCtx.fillRect(waveW * 0.125, waveH * 0.33, waveW * 0.2, waveH * 0.34);
+          waveCtx.fillStyle = 'rgba(0,255,255,0.3)';
+          waveCtx.fillRect(waveW * 0.675, waveH * 0.33, waveW * 0.2, waveH * 0.34);
+        }
+
+        if (quantumState.tunneling) {
+          waveCtx.fillStyle = 'rgba(255,255,0,0.5)';
+          waveCtx.fillRect(waveW * 0.45, waveH * 0.17, waveW * 0.067, waveH * 0.66);
+        }
+      }
+
+      function drawParticles() {
+        particleCtx.clearRect(0, 0, partW, partH);
+
+        quantumState.particles.forEach((p, i) => {
+          if (quantumState.waveCollapsed && quantumState.measurementResult) {
+            const tx = quantumState.measurementResult === 'A' ? partW * 0.25 : partW * 0.75;
+            p.x += (tx - p.x) * 0.1;
+            p.y += ((partH / 2) - p.y) * 0.1;
+          } else if (quantumState.inSuperposition) {
+            p.x += p.vx * (quantumState.observerPresent ? 0.5 : 1);
+            p.y += p.vy * (quantumState.observerPresent ? 0.5 : 1);
+            p.phase += 0.1;
+
+            if (p.x < 0 || p.x > partW) p.vx *= -1;
+            if (p.y < 0 || p.y > partH) p.vy *= -1;
+            p.x = Math.max(0, Math.min(partW, p.x));
+            p.y = Math.max(0, Math.min(partH, p.y));
+          }
+
+          const alpha = quantumState.inSuperposition
+            ? (0.3 + 0.4 * Math.sin(p.phase)) * (quantumState.observerPresent ? 0.5 : 1)
+            : 0.8;
+
+          particleCtx.fillStyle = quantumState.entangled
+            ? `rgba(255,0,255,${alpha})`
+            : `rgba(0,255,255,${alpha})`;
+
+          particleCtx.beginPath();
+          particleCtx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+          particleCtx.fill();
+
+          if (quantumState.entangled && i < quantumState.particles.length - 1) {
+            const n = quantumState.particles[i + 1];
+            particleCtx.strokeStyle = 'rgba(255,0,255,0.3)';
+            particleCtx.lineWidth = 1;
+            particleCtx.beginPath();
+            particleCtx.moveTo(p.x, p.y);
+            particleCtx.lineTo(n.x, n.y);
+            particleCtx.stroke();
+          }
+        });
+      }
+
+      function updateUI() {
+        const $ = (id) => document.getElementById(id);
+        $('currentState').textContent      = quantumState.inSuperposition ? 'Superposition' : 'Collapsed';
+        $('measurementStatus').textContent = quantumState.measured ? 'Yes' : 'No';
+        $('entanglementStatus').textContent= quantumState.entangled ? 'Yes' : 'No';
+        $('observerStatus').textContent    = quantumState.observerPresent ? 'Yes' : 'No';
+        $('collapseStatus').textContent    = quantumState.waveCollapsed ? 'Yes' : 'No';
+        $('tunnelingStatus').textContent   = quantumState.tunneling ? 'Yes' : 'No';
+        document.getElementById('probA').style.width = quantumState.probabilityA + '%';
+        document.getElementById('probB').style.width = quantumState.probabilityB + '%';
+      }
+
+      // Actions
+      function createSuperposition() {
+        quantumState.inSuperposition = true;
+        quantumState.measured = false;
+        quantumState.waveCollapsed = false;
+        quantumState.measurementResult = null;
+        quantumState.probabilityA = 50;
+        quantumState.probabilityB = 50;
+        document.getElementById('measurementResult').textContent =
+          'System in quantum superposition — all possibilities exist simultaneously.';
+        updateUI();
+      }
+
+      function measureSystem() {
+        if (!quantumState.inSuperposition) return;
+        quantumState.measured = true;
+        quantumState.waveCollapsed = true;
+        quantumState.inSuperposition = false;
+        quantumState.measurementResult = Math.random() < (quantumState.probabilityA / 100) ? 'A' : 'B';
+        quantumState.probabilityA = quantumState.measurementResult === 'A' ? 100 : 0;
+        quantumState.probabilityB = 100 - quantumState.probabilityA;
+        document.getElementById('measurementResult').textContent =
+          `Wave function collapsed! Particle measured at position ${quantumState.measurementResult}`;
+        updateUI();
+      }
+
+      function resetSystem() {
+        quantumState = {
+          ...quantumState,
+          inSuperposition: true,
+          measured: false,
+          entangled: false,
+          observerPresent: false,
+          waveCollapsed: false,
+          tunneling: false,
+          uncertainty: 50,
+          frequency: 1.0,
+          waveType: 'sine',
+          interferenceActive: false,
+          measurementResult: null,
+          probabilityA: 50,
+          probabilityB: 50
+        };
+        document.getElementById('measurementResult').textContent = 'System reset to quantum superposition';
+        updateUI();
+      }
+
+      function updateUncertainty(val) {
+        quantumState.uncertainty = val;
+        document.getElementById('uncertaintyValue').textContent = `${val}%`;
+        const deviation = (val / 100) * 50;
+        quantumState.probabilityA = Math.max(0, Math.min(100, 50 + (Math.random() - 0.5) * deviation));
+        quantumState.probabilityB = 100 - quantumState.probabilityA;
+        updateUI();
+      }
+
+      function updateFrequency(val) {
+        quantumState.frequency = parseFloat(val);
+        document.getElementById('frequencyValue').textContent = quantumState.frequency.toFixed(1);
+      }
+
+      // Wire up UI
+      document.getElementById('btnSuperposition').addEventListener('click', createSuperposition);
+      document.getElementById('btnMeasure').addEventListener('click', measureSystem);
+      document.getElementById('btnReset').addEventListener('click', resetSystem);
+      document.getElementById('btnToggleWave').addEventListener('click', () => { quantumState.waveType = quantumState.waveType === 'sine' ? 'cosine' : 'sine'; });
+      document.getElementById('btnInterference').addEventListener('click', () => { quantumState.interferenceActive = !quantumState.interferenceActive; });
+      document.getElementById('btnTunnel').addEventListener('click', () => { quantumState.tunneling = !quantumState.tunneling; updateUI(); });
+      document.getElementById('btnEntangle').addEventListener('click', () => { quantumState.entangled = !quantumState.entangled; updateUI(); });
+      document.getElementById('btnObserver').addEventListener('click', () => { quantumState.observerPresent = !quantumState.observerPresent; updateUI(); });
+      document.getElementById('uncertaintySlider').addEventListener('input', (e)=>updateUncertainty(e.target.value));
+      document.getElementById('frequencySlider').addEventListener('input', (e)=>updateFrequency(e.target.value));
+
+      // Init
+      resizeAll();
+      createSuperposition();
+      updateFrequency(1.0);
+      requestAnimationFrame(animate);
+    })();
+  </script>
+</body>
+</html>
